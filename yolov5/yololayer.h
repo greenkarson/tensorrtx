@@ -3,8 +3,15 @@
 
 #include <vector>
 #include <string>
-#include <NvInfer.h>
-#include "macros.h"
+#include "NvInfer.h"
+
+#if NV_TENSORRT_MAJOR >= 8
+#define TRT_NOEXCEPT noexcept
+#define TRT_CONST_ENQUEUE const
+#else
+#define TRT_NOEXCEPT
+#define TRT_CONST_ENQUEUE
+#endif
 
 namespace Yolo
 {
@@ -17,9 +24,9 @@ namespace Yolo
         float anchors[CHECK_COUNT * 2];
     };
     static constexpr int MAX_OUTPUT_BBOX_COUNT = 1000;
-    static constexpr int CLASS_NUM = 80;
-    static constexpr int INPUT_H = 640;  // yolov5's input height and width must be divisible by 32.
-    static constexpr int INPUT_W = 640;
+    static constexpr int CLASS_NUM = 2;
+    static constexpr int INPUT_H = 960;
+    static constexpr int INPUT_W = 960;
 
     static constexpr int LOCATIONS = 4;
     struct alignas(float) Detection {
@@ -32,7 +39,7 @@ namespace Yolo
 
 namespace nvinfer1
 {
-    class API YoloLayerPlugin : public IPluginV2IOExt
+    class YoloLayerPlugin : public IPluginV2IOExt
     {
     public:
         YoloLayerPlugin(int classCount, int netWidth, int netHeight, int maxOut, const std::vector<Yolo::YoloKernel>& vYoloKernel);
@@ -52,7 +59,7 @@ namespace nvinfer1
 
         virtual size_t getWorkspaceSize(int maxBatchSize) const TRT_NOEXCEPT override { return 0; }
 
-        virtual int enqueue(int batchSize, const void* const* inputs, void*TRT_CONST_ENQUEUE* outputs, void* workspace, cudaStream_t stream) TRT_NOEXCEPT override;
+        virtual int enqueue(int batchSize, const void*const * inputs, void* TRT_CONST_ENQUEUE* outputs, void* workspace, cudaStream_t stream) TRT_NOEXCEPT override;
 
         virtual size_t getSerializationSize() const TRT_NOEXCEPT override;
 
@@ -88,7 +95,7 @@ namespace nvinfer1
         void detachFromContext() TRT_NOEXCEPT override;
 
     private:
-        void forwardGpu(const float* const* inputs, float *output, cudaStream_t stream, int batchSize = 1);
+        void forwardGpu(const float *const * inputs, float * output, cudaStream_t stream, int batchSize = 1);
         int mThreadCount = 256;
         const char* mPluginNamespace;
         int mKernelCount;
@@ -100,7 +107,7 @@ namespace nvinfer1
         void** mAnchor;
     };
 
-    class API YoloPluginCreator : public IPluginCreator
+    class YoloPluginCreator : public IPluginCreator
     {
     public:
         YoloPluginCreator();
@@ -135,4 +142,4 @@ namespace nvinfer1
     REGISTER_TENSORRT_PLUGIN(YoloPluginCreator);
 };
 
-#endif  // _YOLO_LAYER_H
+#endif 
